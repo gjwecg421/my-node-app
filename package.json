@@ -1,0 +1,16 @@
+{
+  "name": "simple-node-ci-example",
+  "version": "1.0.0",
+  "description": "A minimal Node.js app for CI demo.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Running minimal tests...\" && exit 0"
+  },
+  "keywords": [
+    "node",
+    "ci"
+  ],
+  "author": "",
+  "license": "ISC"
+}

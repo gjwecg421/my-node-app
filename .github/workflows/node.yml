@@ -1,0 +1,44 @@
+name: Node.js CI Build and Test
+
+# 触发条件：推送到 main 或 PR 目标为 main 时
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# 定义 CI 任务
+jobs:
+  build:
+    # 任务名称
+    name: Test on Node ${{ matrix.node-version }}
+    
+    # 运行环境
+    runs-on: ubuntu-latest
+
+    # 策略矩阵 (Strategy Matrix):
+    # 用来同时在多个 Node.js 版本上运行测试
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x] # 在 LTS 版本 18 和 20 上测试
+        # 也可以添加不同的操作系统： os: [ubuntu-latest, windows-latest]
+
+    steps:
+    # 1. 检出代码
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 2. 设置 Node.js 环境
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm' # 缓存 npm 依赖以加速构建
+        
+    # 3. 安装依赖
+    - name: Install dependencies
+      run: npm install
+
+    # 4. 运行测试
+    - name: Run tests
+      run: npm test
