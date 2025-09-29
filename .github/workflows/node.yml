@@ -53,7 +53,7 @@ jobs:
       if: success()
       with:
         name: my-node-app-build-${{ github.sha }} # Artifact 名称
-        path: dist/ # 你的构建输出目录
+        path: dist # 你的构建输出目录
 
 # =========================================================================
 # 任务 2: Docker 部署 (CD)
