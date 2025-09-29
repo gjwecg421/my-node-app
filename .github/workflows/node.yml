@@ -73,7 +73,7 @@ jobs:
       # 下载上一个 Job 上传的产物
       uses: actions/download-artifact@v4
       with:
-        name: build-artifact
+        name: my-node-app-build-${{ github.sha }}
         path: ./build # 将产物下载到当前 Job 的 ./build 目录
 
     - name: 🐳 设置 QEMU
