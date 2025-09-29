@@ -19,7 +19,7 @@ FROM ${BASE_IMAGE}
 # COPY build/ /usr/share/nginx/html
 #
 # 如果产物在 ./build/dist/ 下 (更常见):
-COPY build/dist/ /usr/share/nginx/html
+COPY build/ /usr/share/nginx/html
 
 # 暴露 Nginx 默认端口
 EXPOSE 80
