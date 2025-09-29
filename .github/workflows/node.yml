@@ -95,7 +95,7 @@ jobs:
       id: meta
       run: |
         # 完整的标签格式：registry.cn-hangzhou.aliyuncs.com/gjw_k8s/k8s:项目名-分支名-CommitSHA
-        echo "TAG=${{ env.PROJECT_NAME }}-${{ env.BRANCH_NAME }}-${{ env.VERSION_TAG }}" >> $GITHUB_OUTPUT
+        echo "TAG=${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.run_number }}" >> $GITHUB_OUTPUT
         echo "IMAGE_NAME=registry.cn-hangzhou.aliyuncs.com/gjw_k8s/k8s" >> $GITHUB_OUTPUT
 
     - name: 📦 构建并推送 Docker 镜像
