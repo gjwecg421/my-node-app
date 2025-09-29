@@ -1,0 +1,117 @@
+name: Manual Docker Build
+
+# 触发器：定义何时运行此工作流
+on: 
+  workflow_dispatch: # 添加手动触发选项
+    inputs:
+      tag_name:
+        description: 'Image Tag'
+        required: true
+        default: 'latest'
+
+  # 定义一个或多个任务 (Jobs)
+jobs:
+  # 任务名称：构建和测试 (Build and Test)
+  build:
+    # 运行环境：使用最新的 Ubuntu 操作系统作为运行器
+    runs-on: ubuntu-latest
+
+    # 策略：通过矩阵 (Matrix) 运行，以在多个 Node.js 版本下测试
+    strategy:
+      matrix:
+        # 定义需要测试的 Node.js 版本列表
+        node-version: [18.x]
+        # 也可以在此处添加操作系统，例如 os: [ubuntu-latest, windows-latest]
+
+    # 步骤 (Steps)：任务将按顺序执行以下操作
+    steps:
+    - name: ⬇️ Checkout 仓库代码
+      # 使用官方 actions/checkout 动作将仓库代码克隆到运行器上
+      uses: actions/checkout@v4
+
+    - name: ⚙️ 设置 Node.js ${{ matrix.node-version }} 环境
+      # 使用官方 actions/setup-node 动作安装指定的 Node.js 版本
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        # 启用缓存：缓存 node_modules，加速后续运行
+        cache: 'npm' # 或 'yarn'，取决于你使用的包管理器
+
+    - name: 📦 安装依赖
+      # 执行包安装命令
+      run: npm ci
+      # npm ci 比 npm install 更适合 CI 环境，因为它要求 package-lock.json 存在且完整
+
+    - name: 🏗️ 构建项目 (可选)
+      # 运行 package.json 中定义的 build 脚本。如果项目是前端应用或需要编译，则运行此步骤
+      run: npm run build
+      if: success() # 只有前面的步骤成功时才执行此步骤
+
+    - name: 📤 上传构建产物 (可选)
+      # 如果有构建产物 (例如 /dist 文件夹)，将其上传为 Artifact，供后续部署 Job 或下载使用
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: my-node-app-build-${{ github.sha }} # Artifact 名称
+        path: dist # 你的构建输出目录
+
+# =========================================================================
+# 任务 2: Docker 部署 (CD)
+# =========================================================================
+  deploy:
+    # 部署任务必须在构建任务成功后才运行
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: ⬇️ Checkout 仓库代码 (第二次，获取 Dockerfile)
+      # 部署 Job 是一个新的 Runner 实例，需要再次 Checkout 才能访问 Dockerfile 等文件
+      uses: actions/checkout@v4
+
+    - name: 📥 下载构建产物 Artifact
+      # 下载上一个 Job 上传的产物
+      uses: actions/download-artifact@v4
+      with:
+        name: my-node-app-build-${{ github.sha }}
+        path: ./build # 将产物下载到当前 Job 的 ./build 目录
+
+    - name: 🐳 设置 QEMU
+      # QEMU 是用于跨架构构建 Docker 镜像的工具，推荐使用
+      uses: docker/setup-qemu-action@v3
+
+    - name: ⚙️ 设置 Docker Buildx
+      # Buildx 增强了 Docker 构建能力，支持多平台和更好的缓存
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🔒 登录阿里云 Registry
+      uses: docker/login-action@v3
+      with:
+        registry: registry.cn-hangzhou.aliyuncs.com
+        username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+        password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+    - name: 🏷️ 动态生成最终镜像标签
+      id: meta
+      run: |
+        # 完整的标签格式：registry.cn-hangzhou.aliyuncs.com/gjw_k8s/k8s:项目名-分支名-CommitSHA
+        echo "TAG=${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.run_number }}" >> $GITHUB_OUTPUT
+        echo "IMAGE_NAME=registry.cn-hangzhou.aliyuncs.com/gjw_k8s/k8s" >> $GITHUB_OUTPUT
+
+    - name: 📦 构建并推送 Docker 镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: . # Dockerfile 位于项目根目录
+        push: true
+        # NGINX 基础镜像：registry.cn-hangzhou.aliyuncs.com/youtaogou/nginx:alpine-1
+        # 注意：这个 base image 需要在你的阿里云仓库中是公开或可访问的。
+        build-args: |
+          BASE_IMAGE=registry.cn-hangzhou.aliyuncs.com/youtaogou/nginx:alpine-1
+        tags: ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.TAG }}
+        file: Dockerfile.ci # 指定使用下面的 Dockerfile.ci
+
+    - name: 🎉 打印部署信息
+      run: |
+        echo "✅ Docker 镜像推送成功！"
+        echo "镜像名称: ${{ steps.meta.outputs.IMAGE_NAME }}"
+        echo "完整标签: ${{ steps.meta.outputs.TAG }}"
