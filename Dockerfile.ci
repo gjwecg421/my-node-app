@@ -1,0 +1,28 @@
+# Dockerfile.ci
+
+# 使用 ARG 而不是 FROM，以便在 Actions 中动态指定基础镜像
+# 这样可以方便地切换测试和生产环境的基础镜像
+ARG BASE_IMAGE
+
+# 使用构建参数指定的 Nginx 基础镜像
+FROM ${BASE_IMAGE}
+
+
+# 复制构建产物到 Nginx 的默认静态文件目录
+# 在 GitHub Actions 的 deploy 步骤中，产物被下载到 ./build 目录
+# 这里的 /build 目录是相对于 Dockerfile 的构建上下文 (context: .) 来说的。
+# 而 ./build/dist 是在 Actions 中下载 Artifact 时的目录结构。
+# 假设你的产物在 Artifact 中是 dist/ 目录下的内容，下载后位于 ./build/dist/
+#
+# 实际复制的路径取决于你的 Artifact 上传和下载路径，请根据实际情况调整：
+# 如果产物直接在 ./build 下：
+# COPY build/ /usr/share/nginx/html
+#
+# 如果产物在 ./build/dist/ 下 (更常见):
+COPY build/dist/ /usr/share/nginx/html
+
+# 暴露 Nginx 默认端口
+EXPOSE 80
+
+# 保持 Nginx 前台运行
+CMD ["nginx", "-g", "daemon off;"]

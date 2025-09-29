@@ -66,3 +66,65 @@ jobs:
       with:
         name: my-node-app-build-${{ github.sha }} # Artifact 名称
         path: dist/ # 你的构建输出目录
+# =========================================================================
+# 任务 2: Docker 部署 (CD)
+# =========================================================================
+  deploy:
+    # 部署任务必须在构建任务成功后才运行
+    needs: build 
+    # 仅在推送到主分支时才进行部署
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: ⬇️ Checkout 仓库代码 (第二次，获取 Dockerfile)
+      # 部署 Job 是一个新的 Runner 实例，需要再次 Checkout 才能访问 Dockerfile 等文件
+      uses: actions/checkout@v4
+
+    - name: 📥 下载构建产物 Artifact
+      # 下载上一个 Job 上传的产物
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifact
+        path: ./build # 将产物下载到当前 Job 的 ./build 目录
+        
+    - name: 🐳 设置 QEMU
+      # QEMU 是用于跨架构构建 Docker 镜像的工具，推荐使用
+      uses: docker/setup-qemu-action@v3
+      
+    - name: ⚙️ 设置 Docker Buildx
+      # Buildx 增强了 Docker 构建能力，支持多平台和更好的缓存
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 🔒 登录阿里云 Registry
+      uses: docker/login-action@v3
+      with:
+        registry: registry.cn-hangzhou.aliyuncs.com
+        username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+        password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+    - name: 🏷️ 动态生成最终镜像标签
+      id: meta
+      run: |
+        # 完整的标签格式：registry.cn-hangzhou.aliyuncs.com/gjw_k8s/k8s:项目名-分支名-CommitSHA
+        echo "TAG=${{ env.PROJECT_NAME }}-${{ env.BRANCH_NAME }}-${{ env.VERSION_TAG }}" >> $GITHUB_OUTPUT
+        echo "IMAGE_NAME=registry.cn-hangzhou.aliyuncs.com/gjw_k8s/k8s" >> $GITHUB_OUTPUT
+
+    - name: 📦 构建并推送 Docker 镜像
+      uses: docker/build-and-push-action@v5
+      with:
+        context: . # Dockerfile 位于项目根目录
+        push: true
+        # NGINX 基础镜像：registry.cn-hangzhou.aliyuncs.com/youtaogou/nginx:alpine-1
+        # 注意：这个 base image 需要在你的阿里云仓库中是公开或可访问的。
+        build-args: |
+          BASE_IMAGE=registry.cn-hangzhou.aliyuncs.com/youtaogou/nginx:alpine-1
+        tags: ${{ steps.meta.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.TAG }}
+        file: Dockerfile.ci # 指定使用下面的 Dockerfile.ci
+
+    - name: 🎉 打印部署信息
+      run: |
+        echo "✅ Docker 镜像推送成功！"
+        echo "镜像名称: ${{ steps.meta.outputs.IMAGE_NAME }}"
+        echo "完整标签: ${{ steps.meta.outputs.TAG }}"
