@@ -1,16 +1,15 @@
-# 工作流名称：显示在 GitHub Actions 页面上
 name: Node.js CI
 
-# 触发器：定义何时运行此工作流
+  # 触发器：定义何时运行此工作流
 on:
-push:
+  push:
     # 当代码推送到以下分支时运行
     branches: [ "main" ]
   pull_request:
-    # 当针对以下分支创建或更新 Pull Request 时运行
+      # 当针对以下分支创建或更新 Pull Request 时运行
     branches: [ "main" ]
 
-# 定义一个或多个任务 (Jobs)
+  # 定义一个或多个任务 (Jobs)
 jobs:
   # 任务名称：构建和测试 (Build and Test)
   build:
