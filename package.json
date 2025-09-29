@@ -1,16 +1,13 @@
 {
-  "name": "simple-node-ci-example",
+  "name": "my-nodejs-project",
   "version": "1.0.0",
-  "description": "A minimal Node.js app for CI demo.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Running minimal tests...\" && exit 0"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo 'Building the project...' && mkdir -p dist && cp index.js dist/",
+    "start": "node index.js"
   },
-  "keywords": [
-    "node",
-    "ci"
-  ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "description": ""
 }
